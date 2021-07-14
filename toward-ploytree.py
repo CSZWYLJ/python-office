@@ -15,7 +15,7 @@ class TableGenWordOutline:
     def __init__(self, source_file):
         self.source_file = source_file
         # 产生的新文件名
-        self.new_file = "new--" + source_file
+        self.new_file = source_file.replace("./","./result-")
         # 用于记录第一次进入同级标题的index
         self.order_list = []
 
