@@ -15,7 +15,7 @@ class TableGenWordOutline:
     def __init__(self, source_file):
         self.source_file = source_file
         # 产生的新文件名
-        self.new_file = source_file.replace("./","./result-")
+        self.new_file = source_file.replace("./", "./result-")
         # 用于记录第一次进入同级标题的index
         self.order_list = []
 
@@ -130,7 +130,7 @@ class TableGenWordOutline:
                     # print("解析完毕,queue1大小为：",queue1.qsize())
                     break
                 if parent_wrap.access_flag:
-                    self.set_content(parent_wrap, doc)
+                    self.set_content(parent_wrap, doc, is_first=True)
                 else:
                     self.set_title_property(parent_wrap, doc)
                 sub_wrap_list = parent_wrap.next_cell
@@ -157,7 +157,7 @@ class TableGenWordOutline:
                     break
                 else:
                     raise Exception("解析异常")
-        doc.save("res-JKB.docx")
+        doc.save(self.new_file)
         print("写入完毕")
 
     # 判断当前的cell是否不在List中
@@ -171,7 +171,7 @@ class TableGenWordOutline:
             return True
 
     # 设置内容属性
-    def set_content(self, wrap, doc):
+    def set_content(self, wrap, doc, is_first=False):
         p = doc.add_paragraph()
         p.paragraph_format.space_before = Pt(0)  # 设置段前 0 磅
         p.paragraph_format.space_after = Pt(0)  # 设置段后 0 磅
@@ -181,7 +181,10 @@ class TableGenWordOutline:
         p.paragraph_format.left_indent = Inches(0)  # 设置左缩进 1英寸
         p.paragraph_format.right_indent = Inches(0)  # 设置右缩进 0.5 英寸
 
-        text = "正文默认值" if wrap.cell.text == '' or wrap.cell.text.isspace() else wrap.cell.text
+        if wrap.cell.text == '' or wrap.cell.text.isspace():
+            text = "- 正文默认值" if is_first else "正文默认值"
+        else:
+            text = "- " + wrap.cell.text if is_first else wrap.cell.text
         r = p.add_run(f"{text}")
         r.font.name = u'宋体'  # 设置为宋体
         r._element.rPr.rFonts.set(qn('w:eastAsia'), u'宋体')  # 设置为宋体，和上边的一起使用
