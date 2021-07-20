@@ -3,6 +3,7 @@ from docx.oxml.ns import qn
 from docx.shared import Pt
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from collections import OrderedDict
 
 
 def hcf(*x):  # 计算最大公约数
@@ -35,33 +36,51 @@ class WordOutlineGenTable():
         paragraph_list = source_doc.paragraphs
 
         wrap_dict = {}
-        parent_wrap_level = None
-        # 保存标题等级
-        header_list = []
         doc, table = self.get_word_table_instant()
-        header_coo_list = []
-        index_xy = [0,0]
-        for paragraph in paragraph_list:
+        header_coo_dict = OrderedDict()
+        # index_xy = [0, 0]
+        normal_text_count = 0
+        coordinate_list = self.get_coordinate_list()
+        # 新起一行的标志：正文末-->标题
+        is_normal = False
+        for index,paragraph in enumerate(paragraph_list):
             header_level = paragraph.style.name
             print(header_level, paragraph.text)
-            normal_text_count = 0
-            if header_level is "Normal":
+            if header_level.startswith("Normal"):
                 normal_text_count += 1
                 if normal_text_count > self.text_length:
-                    # 1. 添加一行单元格
+                    # 1. 添加一行单元格  注：table_next有点类似单元格的列表形式，访问某个单元格采用列表方式访问
                     table_next = table.add_row().cells
-                    # 2. 合并前面的单元格
-                    for coo_item in header_coo_list:
-                        table.cell(coo_item[0], coo_item[1]).merge(coo_item[0] + 1, coo_item[1])
-                        coo_item[0] = coo_item[0]+1
-                        # 设置属性和值
-            coo = self.gen_coordinate()
-            table.cell(coo[0],coo[1]).text = paragraph.text
-            # 添加标题坐标
-            if header_level.startswith("Header"):
-                index_xy[0]=coo[0]
-                index_xy[1]= coo[1]
-                header_coo_list.append(index_xy)
+                    # 2. 重置normal_text_count，保证每text_length(3)个就新建一行
+                    normal_text_count = 1
+                    # 3. 标志为正文
+                    is_normal = True
+                    # 4. 合并前面的单元格
+                    for header_name, coo_value in header_coo_dict.items():
+                        table.cell(coo_value[0], coo_value[1]).merge(table.cell(coo_value[0] + 1, coo_value[1]))
+                        coo_value[0] = coo_value[0] + 1
+
+                else:
+                    # 当正文小标题小于3时，设置内容到表格
+                    coo = coordinate_list[index]
+                    table.cell(coo[0], coo[1]).text = paragraph.text
+                    continue
+                continue
+            if header_level.startswith("Heading"):
+                if is_normal:
+                    row_next = table.add_row().cells
+                    for header_name, coo_value in header_coo_dict.items():
+                        if header_name == header_level:
+                            break
+                        table.cell(coo_value[0], coo_value[1]).merge(table.cell(coo_value[0] + 1, coo_value[1]))
+                # 生成坐标
+                coo = coordinate_list[index]
+                # 将标题内容写入表格
+                table.cell(coo[0], coo[1]).text = paragraph.text
+                # 添加标题坐标
+                # index_xy[0] = coo[0]
+                # index_xy[1] = coo[1]
+                header_coo_dict[header_level] = coo
         return wrap_dict
 
     # 返回创建出的文档表格（哪个文档的哪张表）
@@ -73,14 +92,13 @@ class WordOutlineGenTable():
         table = doc.add_table(rows=1, cols=4 + self.text_length, style="Table Grid")
         return doc, table
 
-    def write_cell(self, table, cell_content, coordinate: list):
-        table.cell(coordinate[0], coordinate[1]).text = cell_content
-
     # 生成表格坐标
-    def gen_coordinate(self):
-        for i in range(10000):
-            for j in range(0,4+self.text_length):
-                yield i,j
+    def get_coordinate_list(self):
+        coordinate_list = []
+        for i in range(1):
+            for j in range(0, 4 + self.text_length):
+                coordinate_list.append([i,j])
+        return coordinate_list
 
     class CellWrap():
         def __init__(self, content, merge_num=None, level=None):
@@ -106,6 +124,6 @@ class WordOutlineGenTable():
 if __name__ == "__main__":
     print(hcf(10, 25, 35, 65))
 
-    word_table = WordOutlineGenTable("./result-JKB.docx")
+    word_table = WordOutlineGenTable("./result-jiekou.docx")
     word_table.analyse_outline()
     pass
